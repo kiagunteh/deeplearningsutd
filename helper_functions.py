@@ -1,13 +1,18 @@
+import torch, copy
 import pandas as pd
 import numpy as np
-import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, FunctionTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.metrics import f1_score, roc_auc_score
-
+from torch.utils.data import Dataset
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score,
+    confusion_matrix, f1_score, roc_auc_score
+)
 
 class NetworkAnomalyDetector(nn.Module):
     """
@@ -72,6 +77,18 @@ class NetworkAnomalyDetector(nn.Module):
         return self.network(x)
     
 
+class PacketsDataset(Dataset):
+    def __init__(self, X, y):
+        self.X = torch.tensor(X, dtype=torch.float32)
+        self.y = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
+
 def run_epoch(model, optimizer, data_loader, loss_func, device, training):
     """
     One forward (and optionally backward) pass over *loader*.
@@ -109,7 +126,53 @@ def run_epoch(model, optimizer, data_loader, loss_func, device, training):
     }
 
 
+def train(model, optimizer, scheduler, train_loader, val_loader, loss_func, device, num_epoch, patience):
+    history = {'train_loss': [], 'val_loss': [], 'val_f1': [], 'val_roc_auc': []}
+    best_val_loss = float('inf')
+    best_weights = None
+    patience_counter = 0
+
+    for epoch in range(1, num_epoch + 1):
+        train_stats = run_epoch(model=model, optimizer=optimizer, data_loader=train_loader, loss_func=loss_func, device=device, training=True)
+        val_stats = run_epoch(model=model, optimizer=optimizer, data_loader=val_loader, loss_func=loss_func, device=device, training=False)
+
+        scheduler.step(val_stats['loss'])
+
+        history['train_loss'].append(train_stats['loss'])
+        history['val_loss'].append(val_stats['loss'])
+        history['val_f1'].append(val_stats['f1'])
+        history['val_roc_auc'].append(val_stats['roc_auc'])
+
+        print(
+            f"Epoch [{epoch:03d}/{num_epoch}]  "
+            f"Train Loss: {train_stats['loss']:.4f}  |  "
+            f"Val Loss: {val_stats['loss']:.4f}  |  "
+            f"Val F1: {val_stats['f1']:.4f}  |  "
+            f"Val AUC: {val_stats['roc_auc']:.4f}"
+        )
+
+        # Save best model
+        if val_stats['loss'] < best_val_loss:
+            best_val_loss = val_stats['loss']
+            patience_counter = 0
+            best_weights = copy.deepcopy(model.state_dict())
+            print(f"  ✓  New best val loss: {best_val_loss:.4f}")
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f"Early stopping at epoch {epoch}.")
+                break
+
+    # Reload best weights
+    model.load_state_dict(best_weights)
+    print("\nTraining complete. Best weights reloaded.")
+    return history, model
+
+
 def one_hot_encode(df, columns):
+    # create a copy of the dataframe
+    df = df.copy()
+
     # create map of groups to protocol (necessary due to the sheer number of protocols)
     protocol_groups = {
         'common_transport': ['tcp', 'udp', 'sctp'],
@@ -140,7 +203,7 @@ def one_hot_encode(df, columns):
     return df_ohe
 
 
-def normalize(df, X_train, X_val, X_test):
+def get_preprocessor():
     log_scale_cols = ['dur', 'sbytes', 'dbytes', 'spkts', 'dpkts', 'sload', 'dload', 'dttl', 'sintpkt', 'dintpkt', 'sjit', 'djit', 'smeansz', 'dmeansz', 'ct_flw_http_mthd', 'trans_depth', 'ct_srv_src', 'ct_srv_dst', 'ct_dst_ltm', 'ct_src_ltm', 'ct_src_dport_ltm', 'ct_dst_sport_ltm', 'ct_dst_src_ltm']
 
     std_scale_cols = ['tcprtt', 'synack', 'ackdat']
@@ -154,18 +217,8 @@ def normalize(df, X_train, X_val, X_test):
         'res_bdy_len': 0.99
     }
 
-    # Apply clipping before the pipeline
-    for col, quantile in clip_cols.items():
-        cap = X_train[col].quantile(quantile)  # fit on train only
-        X_train[col] = X_train[col].clip(upper=cap)
-        X_val[col]   = X_val[col].clip(upper=cap)
-        X_test[col]  = X_test[col].clip(upper=cap)
-
     # Add clipped columns to log group
     log_scale_cols += list(clip_cols.keys())
-
-    # Add binary flag for res_bdy_len before dropping into pipeline
-    df['has_response_body'] = (df['res_bdy_len'] > 0).astype(np.float32)
 
     # Build pipeline for Log + StandardScalar
     log_transformer = Pipeline([
@@ -179,12 +232,7 @@ def normalize(df, X_train, X_val, X_test):
         ('minmax',      MinMaxScaler(),   minmax_cols)
     ], remainder='passthrough')
 
-    # Fit on train only, transform all splits
-    X_train = preprocessor.fit_transform(X_train).astype(np.float32)
-    X_val = preprocessor.transform(X_val).astype(np.float32)
-    X_test = preprocessor.transform(X_test).astype(np.float32)
-
-    return X_train, X_val, X_test
+    return preprocessor
 
 
 def load_data(file):
@@ -193,4 +241,55 @@ def load_data(file):
     df = pd.read_csv(file)
     df.columns = labels
     return df
+
+
+def plot_training_curves(history):
+    epochs = range(1, len(history['train_loss']) + 1)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+    axes[0].plot(epochs, history['train_loss'], label='Train')
+    axes[0].plot(epochs, history['val_loss'],   label='Val')
+    axes[0].set_title('Loss')
+    axes[0].set_xlabel('Epoch')
+    axes[0].legend()
+
+    axes[1].plot(epochs, history['val_f1'], color='green')
+    axes[1].set_title('Val F1 Score')
+    axes[1].set_xlabel('Epoch')
+
+    axes[2].plot(epochs, history['val_roc_auc'], color='darkorange')
+    axes[2].set_title('Val ROC-AUC')
+    axes[2].set_xlabel('Epoch')
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_confusion_matrix(stats, preds_bin, title):
+    cm = confusion_matrix(stats['labels'], preds_bin)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Benign', 'Malicious'],
+                yticklabels=['Benign', 'Malicious'])
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('Actual')
+    ax.set_title(title)
+    plt.tight_layout()
+    plt.show()
+
+
+def weighted_bce(pred, target, pos_weight):
+    """BCE loss with up-weighting of the malicious (positive) class."""
+    weights = torch.where(target == 1, pos_weight, torch.ones_like(target))
+    return (nn.functional.binary_cross_entropy(pred, target, reduction='none') * weights).mean()
+
+
+def print_results(stats, preds_bin, title):
+    print(title)
+    print(f"Loss      : {stats['loss']:.4f}")
+    print(f"Accuracy  : {accuracy_score(stats['labels'], preds_bin):.4f}")
+    print(f"Precision : {precision_score(stats['labels'], preds_bin, zero_division=0):.4f}")
+    print(f"Recall    : {recall_score(stats['labels'], preds_bin, zero_division=0):.4f}")
+    print(f"F1        : {stats['f1']:.4f}")
+    print(f"ROC-AUC   : {stats['roc_auc']:.4f}")
 
