@@ -35,11 +35,16 @@ Details about data preprocessing and the deeplearning architecture used and its 
 | 5  | tuning.py | Contains code to conduct hyperparameter tuning using Optuna
 | 6  | download_dataset.py | Contains code to download and upzip the dataset to be placed in the correct ./data directory for project.ipynb
 
-## Install dependencies
+## Setting Up
+### Install Dependencies
 ```bash
 $ python3 -m venv venv
 $ source venv/bin/activate
 $ pip install -r requirements.txt
+```
+### Download Dataset
+```bash
+$ python3 download_dataset.py
 ```
 ## Running the Jupyter notebook
 We used the [Jupyter VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter&ssr=false#overview) to run and interact with our notebook. Simply install it within VSCode and open the Jupyter notebook with VSCode to start.
