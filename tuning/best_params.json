@@ -1,0 +1,13 @@
+{
+  "trial_number": 25,
+  "val_loss": 0.022459831493241447,
+  "val_f1": 0.9206546509218977,
+  "params": {
+    "lr": 0.000503214096782759,
+    "weight_decay": 2.1258108517939597e-06,
+    "dropout_p": 0.12296297251821234,
+    "batch_size": 512,
+    "scheduler_factor": 0.5069410260856266,
+    "scheduler_patience": 3
+  }
+}
