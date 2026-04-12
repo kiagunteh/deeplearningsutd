@@ -1,5 +1,5 @@
 # Malicious Packet Neural Network Classifier
-A deeplearning architecture designed to classify anomalous malicious packets.
+Training a deep learning model  to classify anomalous malicious network packets.\
 For the module 50.039 Deep Learning, Y2026 @ SUTD
 ## About
 The project focuses on anomaly detection, with the requirement to use a dataset that exhibits class imbalance, where the number of "normal" samples far exceeding the number of "anomalous" samples. The task we have chosen is the detection of malicious network packets, with the dataset being the UNSW_NB15 dataset found [here](https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15/data).\
@@ -36,6 +36,11 @@ Details about data preprocessing and the deeplearning architecture used and its 
 | 6  | download_dataset.py | Contains code to download and upzip the dataset to be placed in the correct ./data directory for project.ipynb
 
 ## Setting Up
+### Clone Repository
+```bash
+$ git clone https://github.com/kiagunteh/deeplearningsutd
+$ cd deeplearningsutd
+```
 ### Install Dependencies
 ```bash
 $ python3 -m venv venv
