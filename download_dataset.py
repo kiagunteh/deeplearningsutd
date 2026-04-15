@@ -3,7 +3,7 @@ import requests
 import zipfile
 from io import BytesIO
 
-URL = "https://www.kaggle.com/api/v1/datasets/download/mrwellsdavid/unsw-nb15"   # replace with your URL
+URL = "https://www.kaggle.com/api/v1/datasets/download/mrwellsdavid/unsw-nb15"
 FILE_PATH = "./data"
 
 os.makedirs(FILE_PATH, exist_ok=True)

@@ -47,6 +47,20 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def load_and_preprocess():
+    """Loads, cleans, encodes, and scales the dataset for hyperparameter tuning.
+
+    Reads the raw CSV, drops identifier and target-category columns, applies
+    one-hot encoding to categorical features, performs an 80/10/10
+    train/val/test split (only train and val are returned), and fits a
+    ``ColumnTransformer`` preprocessor on the training split before
+    transforming both splits.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: A
+        ``(X_train, X_val, y_train, y_val)`` tuple where all arrays are
+        ``float32`` and ``X_*`` arrays have shape
+        ``(n_samples, n_features)``.
+    """
     df = load_data(DATA_PATH)
     df.drop(
         ["srcip", "dstip", "stime", "ltime", "stcpb", "dtcpb", "sport", "dsport", "attack_cat"],
@@ -72,6 +86,21 @@ def load_and_preprocess():
 
 
 def make_loss_func(y_train, device):
+    """Creates a weighted BCE loss function calibrated to the training class distribution.
+
+    Computes the negative-to-positive class ratio and uses the larger of that
+    ratio or ``1.5`` as the positive-class weight, then returns a closure over
+    ``weighted_bce``.
+
+    Args:
+        y_train (np.ndarray): Binary training labels used to compute the
+            class ratio.
+        device (torch.device): Device on which the weight tensor is placed.
+
+    Returns:
+        callable: A loss function with signature
+        ``loss_func(pred, target) -> torch.Tensor``.
+    """
     n_neg = (y_train == 0).sum()
     n_pos = (y_train == 1).sum()
     raw_ratio = n_neg / n_pos
@@ -81,6 +110,27 @@ def make_loss_func(y_train, device):
 
 
 def objective(trial: optuna.Trial) -> float:
+    """Optuna objective function that trains and evaluates one hyperparameter configuration.
+
+    Samples learning rate, weight decay, dropout probability, batch size, and
+    learning-rate scheduler settings, then trains ``NetworkAnomalyDetector``
+    with early stopping. Reports validation loss to Optuna each epoch to
+    enable median pruning. Best weights for the trial are stored in the
+    module-level ``_pending_weights`` dict so ``BestModelCallback`` can
+    persist them if the trial becomes the new study best.
+
+    Args:
+        trial (optuna.Trial): Optuna trial object used to sample
+            hyperparameters and report intermediate values.
+
+    Returns:
+        float: Best validation loss achieved during training (minimised by
+        the study).
+
+    Raises:
+        optuna.exceptions.TrialPruned: If the median pruner determines the
+            trial should be stopped early.
+    """
     # --- Suggest hyperparameters ---
     lr = trial.suggest_float("lr", 1e-4, 1e-1, log=True)
     weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True)
@@ -147,11 +197,28 @@ class BestModelCallback:
     """Saves the best model weights whenever a new best trial is found."""
 
     def __init__(self, save_dir: str):
+        """Initialises the callback and creates the save directory if absent.
+
+        Args:
+            save_dir (str): Directory path where ``best_model.pth`` and
+                ``best_params.json`` are written.
+        """
         os.makedirs(save_dir, exist_ok=True)
         self.save_dir = save_dir
         self.best_val = float("inf")
 
     def __call__(self, study: optuna.Study, trial: optuna.trial.FrozenTrial):
+        """Invoked by Optuna after each trial completes.
+
+        If the completed trial achieves a new study-best validation loss,
+        saves the corresponding model weights to ``best_model.pth`` and
+        writes a ``best_params.json`` summary alongside it.
+
+        Args:
+            study (optuna.Study): The current Optuna study.
+            trial (optuna.trial.FrozenTrial): The frozen trial that just
+                finished, including its value and user attributes.
+        """
         weights = _pending_weights.pop(trial.number, None)
         if trial.value is not None and trial.value < self.best_val:
             self.best_val = trial.value
@@ -179,6 +246,23 @@ class BestModelCallback:
 
 
 def run_tuning(n_trials: int = 50, resume: bool = False):
+    """Creates (or resumes) an Optuna study and runs hyperparameter optimisation.
+
+    Configures a TPE sampler and median pruner, then calls
+    ``study.optimize`` with ``BestModelCallback`` attached. Prints a
+    summary of the best trial on completion.
+
+    Args:
+        n_trials (int, optional): Number of Optuna trials to run.
+            Defaults to ``50``.
+        resume (bool, optional): If ``True``, loads an existing study from
+            ``tuning.db`` instead of creating a new one. Defaults to
+            ``False``.
+
+    Returns:
+        optuna.Study: The completed (or partially completed) Optuna study
+        object.
+    """
     os.makedirs(SAVE_DIR, exist_ok=True)
 
     sampler = TPESampler(seed=SEED)

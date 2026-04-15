@@ -1,13 +1,46 @@
 import torch, copy
 import numpy as np
 import torch.nn as nn
+from typing import Callable
+from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score, roc_auc_score
 
 
-def run_epoch(model, optimizer, data_loader, loss_func, device, training):
-    """
-    One forward (and optionally backward) pass over *loader*.
-    Returns a dict with loss, f1, roc_auc, probs, labels.
+def run_epoch(
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    data_loader: DataLoader,
+    loss_func: Callable,
+    device: torch.device,
+    training: bool,
+) -> dict:
+    """Runs one forward (and optionally backward) pass over a data loader.
+
+    Sets the model to train or eval mode accordingly, accumulates predictions
+    and labels across all batches, and computes aggregate metrics.
+
+    Args:
+        model (torch.nn.Module): The neural network model.
+        optimizer (torch.optim.Optimizer): Optimizer used for parameter
+            updates (only applied when ``training=True``).
+        data_loader (torch.utils.data.DataLoader): DataLoader yielding
+            ``(X_batch, y_batch)`` tuples.
+        loss_func (callable): Loss function with signature
+            ``loss_func(preds, targets) -> torch.Tensor``.
+        device (torch.device): Device to move batches onto before inference.
+        training (bool): If ``True``, performs a backward pass and parameter
+            update; otherwise runs in inference mode with no gradients.
+
+    Returns:
+        dict: A dictionary with the following keys:
+
+        * ``'loss'`` (float): Mean loss over the full dataset.
+        * ``'f1'`` (float): F1 score at a 0.5 decision threshold.
+        * ``'roc_auc'`` (float): Area under the ROC curve.
+        * ``'probs'`` (np.ndarray): Raw predicted probabilities, shape
+          ``(n_samples,)``.
+        * ``'labels'`` (np.ndarray): Ground-truth labels, shape
+          ``(n_samples,)``.
     """
     model.train() if training else model.eval()
     total_loss, all_probs, all_labels = 0.0, [], []
@@ -41,7 +74,46 @@ def run_epoch(model, optimizer, data_loader, loss_func, device, training):
     }
 
 
-def train(model, optimizer, scheduler, train_loader, val_loader, loss_func, device, num_epoch, patience, verbose=True):
+def train(
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.ReduceLROnPlateau,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    loss_func: Callable,
+    device: torch.device,
+    num_epoch: int,
+    patience: int,
+    verbose: bool = True,
+) -> tuple[dict, nn.Module]:
+    """Trains a model with early stopping and learning-rate scheduling.
+
+    Runs up to ``num_epoch`` training epochs, evaluating on the validation set
+    after each one. Tracks the best validation loss and restores those weights
+    before returning. Training halts early if validation loss does not improve
+    for ``patience`` consecutive epochs.
+
+    Args:
+        model (torch.nn.Module): Model to train (modified in-place).
+        optimizer (torch.optim.Optimizer): Optimizer for parameter updates.
+        scheduler (torch.optim.lr_scheduler.ReduceLROnPlateau): Learning-rate
+            scheduler stepped on validation loss each epoch.
+        train_loader (torch.utils.data.DataLoader): DataLoader for training data.
+        val_loader (torch.utils.data.DataLoader): DataLoader for validation data.
+        loss_func (callable): Loss function passed to ``run_epoch``.
+        device (torch.device): Device to run training on.
+        num_epoch (int): Maximum number of training epochs.
+        patience (int): Number of epochs without improvement before early stopping.
+        verbose (bool, optional): If ``True``, prints per-epoch metrics and
+            improvement messages. Defaults to ``True``.
+
+    Returns:
+        tuple[dict, torch.nn.Module]: A ``(history, model)`` pair where:
+
+        * ``history`` is a dict with lists ``'train_loss'``, ``'val_loss'``,
+          ``'val_f1'``, and ``'val_roc_auc'``, one entry per completed epoch.
+        * ``model`` is the input model with best-validation-loss weights loaded.
+    """
     history = {'train_loss': [], 'val_loss': [], 'val_f1': [], 'val_roc_auc': []}
     best_val_loss = float('inf')
     best_weights = None
@@ -86,8 +158,26 @@ def train(model, optimizer, scheduler, train_loader, val_loader, loss_func, devi
     return history, model
 
 
-def weighted_bce(pred, target, pos_weight):
-    """BCE loss with up-weighting of the malicious (positive) class."""
+def weighted_bce(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    pos_weight: float | torch.Tensor,
+) -> torch.Tensor:
+    """Computes binary cross-entropy loss with up-weighting for the positive class.
+
+    Assigns ``pos_weight`` to samples where ``target == 1`` (malicious) and
+    ``1.0`` to samples where ``target == 0`` (benign), then returns the
+    weighted mean loss.
+
+    Args:
+        pred (torch.Tensor): Predicted probabilities, shape ``(batch, 1)``.
+        target (torch.Tensor): Ground-truth binary labels, shape ``(batch, 1)``.
+        pos_weight (float | torch.Tensor): Scalar weight applied to positive
+            (malicious) samples to compensate for class imbalance.
+
+    Returns:
+        torch.Tensor: Scalar weighted mean BCE loss.
+    """
     weights = torch.where(target == 1, pos_weight, torch.ones_like(target))
     return (nn.functional.binary_cross_entropy(pred, target, reduction='none') * weights).mean()
 

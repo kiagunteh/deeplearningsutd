@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
@@ -53,7 +54,12 @@ class NetworkAnomalyDetector(nn.Module):
 
         self._init_weights()
 
-    def _init_weights(self):
+    def _init_weights(self) -> None:
+        """Initialises all ``nn.Linear`` weights with He (Kaiming) uniform init.
+
+        Biases are initialised to zero. Called automatically at the end of
+        ``__init__``.
+        """
         # He uniform initialisation for all Linear layers.
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -62,17 +68,58 @@ class NetworkAnomalyDetector(nn.Module):
                     nn.init.zeros_(m.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Runs a forward pass through the network.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape ``(batch_size, input_dim)``.
+
+        Returns:
+            torch.Tensor: Output tensor of shape ``(batch_size, 1)`` with
+            values in ``[0, 1]`` representing the probability of the
+            malicious class.
+        """
         return self.network(x)
     
 
 class PacketsDataset(Dataset):
-    def __init__(self, X, y):
+    """PyTorch ``Dataset`` wrapping pre-processed packet feature arrays.
+
+    Converts numpy arrays to float32 tensors at construction time so that
+    per-batch device transfers are the only copy required during training.
+
+    Args:
+        X (np.ndarray): Feature matrix of shape ``(n_samples, n_features)``.
+        y (np.ndarray): Binary label vector of shape ``(n_samples,)``.
+    """
+
+    def __init__(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Initialises the dataset by converting arrays to float32 tensors.
+
+        Args:
+            X (np.ndarray): Feature matrix of shape ``(n_samples, n_features)``.
+            y (np.ndarray): Binary label vector of shape ``(n_samples,)``.
+        """
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Returns the number of samples in the dataset.
+
+        Returns:
+            int: Total number of samples.
+        """
         return len(self.X)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """Retrieves a single sample by index.
+
+        Args:
+            idx (int): Index of the sample to retrieve.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: A ``(features, label)`` pair
+            where features has shape ``(n_features,)`` and label has
+            shape ``(1,)``.
+        """
         return self.X[idx], self.y[idx]
 
