@@ -36,25 +36,25 @@ Details about data preprocessing and the deeplearning architecture used and its 
 | 6  | download_dataset.py | Contains code to download and upzip the dataset to be placed in the correct ./data directory for project.ipynb
 
 ## Setting Up
-### Clone Repository
+### 1. Clone Repository
 ```bash
 $ git clone https://github.com/kiagunteh/deeplearningsutd
 $ cd deeplearningsutd
 ```
-### Install Dependencies
+### 2. Install Dependencies
 ```bash
 $ python3 -m venv venv
 $ source venv/bin/activate
 $ pip install -r requirements.txt
 ```
-### (Optional) Download and install cuda
+### 3. (Optional) Download and install cuda
 Our model will use cuda to run the model on your GPU if you install cuda, which will accelerate training and evaluation. However, this is entirely optional and the notebook will stil run without cuda on your CPU instead.\
 First check if your GPU is supported by checking this [link](https://developer.nvidia.com/cuda/gpus).
 #### Within WSL
 You may follow the steps detailed within this [link](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) to get cuda working within your WSL environment.
 #### Not WSL
 Follow the steps [here](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_local) to get cuda on your machine.
-### Download Dataset
+### 4. Download Dataset
 ```bash
 $ python3 download_dataset.py
 ```
