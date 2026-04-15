@@ -43,8 +43,8 @@ $ cd deeplearningsutd
 ```
 ### 2. Install Dependencies
 ```bash
-$ python3 -m venv venv
-$ source venv/bin/activate
+$ python3 -m venv .venv
+$ source .venv/bin/activate
 $ pip install -r requirements.txt
 ```
 ### 3. (Optional) Download and install cuda
