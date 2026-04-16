@@ -54,7 +54,10 @@ First check if your GPU is supported by checking this [link](https://developer.n
 You may follow the steps detailed within this [link](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) to get cuda working within your WSL environment.
 #### Not WSL
 Follow the steps [here](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_local) to get cuda on your machine.
-### 4. Download Dataset
+### 4. Install PyTorch
+Since the PyTorch installation depends on your compute platform (cuda version or cpu), we are unable to provide a one-size-fits-all solution and you would have to install PyTorch manually. [This link](https://pytorch.org/get-started/locally/) will provide you with instructions to install PyTorch within the virtual environment.\
+If you are using cuda, you can check which version you are running with this command: `nvidia-smi` after installation.
+### 5. Download Dataset
 ```bash
 $ python3 download_dataset.py
 ```
