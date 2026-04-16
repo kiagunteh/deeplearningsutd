@@ -62,4 +62,4 @@ If you are using cuda, you can check which version you are running with this com
 $ python3 download_dataset.py
 ```
 ## Running the Jupyter notebook
-We used the [Jupyter VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter&ssr=false#overview){:target="_blank"} to run and interact with our notebook. Simply install it within VSCode and open the Jupyter notebook with VSCode to start.
+We used the [Jupyter VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter&ssr=false#overview) to run and interact with our notebook. Simply install it within VSCode and open the Jupyter notebook with VSCode to start.
