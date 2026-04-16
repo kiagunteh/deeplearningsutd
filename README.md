@@ -55,7 +55,7 @@ You may follow the steps detailed within this <a href="https://docs.nvidia.com/c
 #### Not WSL
 Follow the steps <a href="https://developer.nvidia.com/cuda-downloads" target="_blank" rel="noopener noreferrer">here</a> to get cuda on your machine.
 ### 4. Install PyTorch
-Since the PyTorch installation depends on your compute platform (cuda version or cpu), we are unable to provide a one-size-fits-all solution and you would have to install PyTorch manually. [This link](https://pytorch.org/get-started/locally/){:target="_blank"} will provide you with instructions to install PyTorch within the virtual environment.\
+Since the PyTorch installation depends on your compute platform (cuda version or cpu), we are unable to provide a one-size-fits-all solution and you would have to install PyTorch manually. [This link](https://pytorch.org/get-started/locally/) will provide you with instructions to install PyTorch within the virtual environment.\
 If you are using cuda, you can check which version you are running with this command: `nvidia-smi` after installation.
 ### 5. Download Dataset
 ```bash
