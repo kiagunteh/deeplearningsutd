@@ -2,7 +2,7 @@
 Training a deep learning model  to classify anomalous malicious network packets.\
 For the module 50.039 Deep Learning, Y2026 @ SUTD
 ## About
-The project focuses on anomaly detection, with the requirement to use a dataset that exhibits class imbalance, where the number of "normal" samples far exceeding the number of "anomalous" samples. The task we have chosen is the detection of malicious network packets, with the dataset being the UNSW_NB15 dataset found [here](https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15/data).\
+The project focuses on anomaly detection, with the requirement to use a dataset that exhibits class imbalance, where the number of "normal" samples far exceeding the number of "anomalous" samples. The task we have chosen is the detection of malicious network packets, with the dataset being the UNSW_NB15 dataset found <a href="https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15/data" target="_blank" rel="noopener noreferrer">here</a>\
 \
 Details about data preprocessing and the deeplearning architecture used and its implementation can be found within the PDF report and Jupyter notebook.
 ## Project Structure
@@ -49,17 +49,17 @@ $ pip install -r requirements.txt
 ```
 ### 3. (Optional) Download and install cuda
 Our model will use cuda to run the model on your GPU if you install cuda, which will accelerate training and evaluation. However, this is entirely optional and the notebook will stil run without cuda on your CPU instead.\
-First check if your GPU is supported by checking this [link](https://developer.nvidia.com/cuda/gpus).
+First check if your GPU is supported by checking this <a href="https://developer.nvidia.com/cuda/gpus" target="_blank" rel="noopener noreferrer">link</a>.
 #### Within WSL
-You may follow the steps detailed within this [link](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) to get cuda working within your WSL environment.
+You may follow the steps detailed within this <a href="https://docs.nvidia.com/cuda/wsl-user-guide/index.html" target="_blank" rel="noopener noreferrer">link</a> to get cuda working within your WSL environment.
 #### Not WSL
-Follow the steps [here](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_local) to get cuda on your machine.
+Follow the steps <a href="https://developer.nvidia.com/cuda-downloads" target="_blank" rel="noopener noreferrer">here</a> to get cuda on your machine.
 ### 4. Install PyTorch
-Since the PyTorch installation depends on your compute platform (cuda version or cpu), we are unable to provide a one-size-fits-all solution and you would have to install PyTorch manually. [This link](https://pytorch.org/get-started/locally/) will provide you with instructions to install PyTorch within the virtual environment.\
+Since the PyTorch installation depends on your compute platform (cuda version or cpu), we are unable to provide a one-size-fits-all solution and you would have to install PyTorch manually. [This link](https://pytorch.org/get-started/locally/){:target="_blank"} will provide you with instructions to install PyTorch within the virtual environment.\
 If you are using cuda, you can check which version you are running with this command: `nvidia-smi` after installation.
 ### 5. Download Dataset
 ```bash
 $ python3 download_dataset.py
 ```
 ## Running the Jupyter notebook
-We used the [Jupyter VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter&ssr=false#overview) to run and interact with our notebook. Simply install it within VSCode and open the Jupyter notebook with VSCode to start.
+We used the [Jupyter VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter&ssr=false#overview){:target="_blank"} to run and interact with our notebook. Simply install it within VSCode and open the Jupyter notebook with VSCode to start.
